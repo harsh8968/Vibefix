@@ -600,17 +600,17 @@ const AGENTS = [
 
 const FINDINGS = [
   { id:'intake',   title:'Intake Report',    badge: null,
-    rows: [['Language','Python',null],['Framework','Flask',null],['Complexity','8 / 10','warn'],['DB detected','⚠ yes','warn'],['Auth detected','⚠ yes','warn']] },
-  { id:'security', title:'Security Audit',   badge: ['2 CRITICAL','danger'],
-    rows: [['SQL injection','f-string in query','danger'],['Hardcoded secret','DB_PASSWORD in source','danger'],['Raw exception','leaks stack trace','warn']] },
+    rows: [['Mode','Project folder',null],['Files scanned','15 source files',null],['Skipped','.env + build dirs','warn'],['Output','vibefix-output',null]] },
+  { id:'security', title:'Security Audit',   badge: ['PROJECT RISK','danger'],
+    rows: [['SQL injection','found in app route','danger'],['Hardcoded secret','found in source','danger'],['Raw exception','leaks internals','warn']] },
   { id:'perf',     title:'Performance Audit',badge: ['2 HIGH','warn'],
-    rows: [['No DB pooling','new conn / request','warn'],['Blocking I/O','email in request path','warn']] },
+    rows: [['No DB pooling','new conn / request','warn'],['Blocking I/O','email in request path','warn'],['Large query','no pagination','warn']] },
   { id:'errors',   title:'Error Handling',   badge: ['3 HIGH','warn'],
-    rows: [['No try/except','around DB call','warn'],['No try/except','around email send','warn'],['Raw data return','exposes DB rows','warn']] },
+    rows: [['No try/except','around DB call','warn'],['No try/except','around email send','warn'],['Missing validation','request payload','warn']] },
   { id:'orch',     title:'Orchestrator',     badge: ['NOT SHIP READY','danger'],
-    rows: [['Total issues','8 fixes needed',null],['#1 CRITICAL','Parameterize SQL','danger'],['#2 CRITICAL','Move secrets to env','danger'],['#3–8','Error handling + perf','warn']] },
-  { id:'rewrite',  title:'Code Rewriter',    badge: ['8/8 FIXED ✓','p'],
-    rows: [['SQL','parameterized ✓','p'],['Secrets','moved to env ✓','p'],['Try/except','added throughout ✓','p'],['DB pooling','SQLAlchemy pool ✓','p']] },
+    rows: [['Total issues','10 fixes needed',null],['#1 CRITICAL','Move secrets to env','danger'],['#2 CRITICAL','Parameterize SQL','danger'],['#3-10','Errors + performance','warn']] },
+  { id:'rewrite',  title:'Project Rewriter',    badge: ['COPY WRITTEN','p'],
+    rows: [['Output folder','vibefix-output','p'],['Original project','left untouched','p'],['Changed files','written separately','p'],['Run command','python main.py --project','p']] },
 ];
 
 const SAMPLE_CODE = `from flask import Flask, request
@@ -680,6 +680,39 @@ def get_user_data():
     return jsonify(
         {"data": [r._asdict() for r in rows]}
     ), 200`;
+
+const PROJECT_TREE = `VibeFix/
+  agents/
+    intake_agent.py
+    security_agent.py
+    performance_agent.py
+    error_agent.py
+    orchestrator_agent.py
+    rewriter_agent.py
+    project_scanner.py
+    project_rewriter_agent.py
+  models/
+    manifest.py
+  main.py
+  VibeFix.html
+  requirements.txt
+
+Command:
+python main.py --project . --output vibefix-output`;
+
+const FIXED_PROJECT = `vibefix-output/
+  agents/
+    intake_agent.py          changed
+    error_agent.py           changed
+    project_scanner.py       copied
+    project_rewriter_agent.py copied
+  main.py                    copied
+  VibeFix.html               copied
+  README.md                  copied
+
+Original project: unchanged
+Fixed copy: vibefix-output
+Secrets skipped: .env, .env.local`;
 
 // ─── HELPERS ────────────────────────────────────────────────────
 function pos(agent) {
@@ -904,7 +937,7 @@ function LeftPanel({ phase, code, setCode, onRun, theme }) {
       {/* File label */}
       <div style={{ padding:'9px 16px 5px', display:'flex', alignItems:'center', gap:7 }}>
         <span style={{ fontSize:10, letterSpacing:2, color:'rgba(255,255,255,0.14)', fontWeight:600 }}>
-          {phase === 'idle' ? 'PASTE CODE' : 'INPUT.PY'}
+          {phase === 'idle' ? 'PROJECT FOLDER' : 'PROJECT SCAN'}
         </span>
         {(running || done) && (
           <span style={{
@@ -915,7 +948,7 @@ function LeftPanel({ phase, code, setCode, onRun, theme }) {
         )}
       </div>
 
-      {/* Code area */}
+      {/* Project area */}
       <div style={{
         flex:1, overflow:'hidden', position:'relative',
         opacity: running ? 0.4 : 1,
@@ -923,15 +956,20 @@ function LeftPanel({ phase, code, setCode, onRun, theme }) {
         transition: 'opacity 0.6s, filter 0.6s',
       }}>
         {phase === 'idle' ? (
-          <textarea value={code} onChange={e => setCode(e.target.value)}
-            placeholder={"Paste your vibe-coded project here...\n\nSupports Python, JS, TS, Go..."}
-            style={{
-              width:'100%', height:'100%', background:'transparent', border:'none',
-              resize:'none', color:'rgba(255,255,255,0.58)',
-              fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, lineHeight:'18px',
-              padding:'8px 14px 8px 14px', caretColor: c.p,
-            }}
-          />
+          <div style={{ height:'100%', overflowY:'auto', padding:'10px 14px', fontFamily:"'JetBrains Mono',monospace" }}>
+            <div style={{ color:c.p, fontSize:11, fontWeight:800, marginBottom:8 }}>Folder access mode</div>
+            <div style={{ color:'rgba(255,255,255,0.48)', fontSize:10.5, lineHeight:'18px', marginBottom:12 }}>
+              VibeFix scans an entire project folder, skips secrets/build artifacts, and writes a fixed copy.
+            </div>
+            <div style={{ padding:'10px', border:`1px solid ${c.p}20`, borderRadius:8, background:`${c.p}08`, marginBottom:12 }}>
+              <div style={{ color:'rgba(255,255,255,0.26)', fontSize:9, letterSpacing:1.3, marginBottom:6 }}>PROJECT PATH</div>
+              <div style={{ color:'rgba(255,255,255,0.66)', fontSize:10, lineHeight:'16px', wordBreak:'break-all' }}>C:\Users\HARSH\OneDrive\Desktop\VibeFix</div>
+            </div>
+            <div style={{ color:'rgba(255,255,255,0.24)', fontSize:9, letterSpacing:1.3, marginBottom:6 }}>COMMAND</div>
+            <div style={{ color:'rgba(255,255,255,0.58)', fontSize:10, lineHeight:'17px', whiteSpace:'pre-wrap' }}>python main.py --project . --output vibefix-output</div>
+            <div style={{ color:'rgba(255,255,255,0.24)', fontSize:9, letterSpacing:1.3, margin:'14px 0 6px' }}>SCAN TARGETS</div>
+            <div style={{ color:'rgba(255,255,255,0.42)', fontSize:10, lineHeight:'17px', whiteSpace:'pre-wrap' }}>agents/*.py{"\n"}models/*.py{"\n"}main.py{"\n"}VibeFix.html{"\n"}requirements.txt</div>
+          </div>
         ) : (
           <div style={{ height:'100%', overflowY:'auto', padding:'4px 0' }}>
             {lines.map(({ ln, i, color, bg, bl }) => (
@@ -967,7 +1005,7 @@ function LeftPanel({ phase, code, setCode, onRun, theme }) {
           cursor: running ? 'not-allowed' : 'pointer',
           transition:'all 0.25s',
         }}>
-          {phase === 'idle' && '▶  RUN VIBEFIX'}
+          {phase === 'idle' && 'SCAN PROJECT FOLDER'}
           {phase === 'running' && '⟳  RUNNING…'}
           {phase === 'done' && '↺  RUN AGAIN'}
         </button>
@@ -1011,7 +1049,7 @@ function RightPanel({ phase, done, completedCount, theme }) {
         {/* Tabs */}
         {done && (
           <div style={{ display:'flex', borderBottom:'1px solid rgba(255,255,255,0.05)', padding:'0 14px' }}>
-            {[['findings','Findings'],['code','Fixed Code']].map(([id, lbl]) => (
+            {[['findings','Findings'],['code','Fixed Project']].map(([id, lbl]) => (
               <button key={id} onClick={() => setTab(id)} style={{
                 padding:'9px 11px', background:'none', border:'none', cursor:'pointer',
                 fontSize:11, fontWeight:600, fontFamily:"'Space Grotesk',sans-serif",
@@ -1072,12 +1110,12 @@ function RightPanel({ phase, done, completedCount, theme }) {
             </>
           )}
 
-          {/* Fixed code tab */}
+          {/* Fixed project tab */}
           {done && tab === 'code' && (
             <div style={{ padding:'0 0 16px' }}>
               <div style={{ padding:'7px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:10, color:'rgba(255,255,255,0.18)', fontFamily:"'JetBrains Mono',monospace" }}>fixed_app.py</span>
-                <button onClick={() => navigator.clipboard?.writeText(FIXED_CODE)} style={{
+                <span style={{ fontSize:10, color:'rgba(255,255,255,0.18)', fontFamily:"'JetBrains Mono',monospace" }}>vibefix-output/</span>
+                <button onClick={() => navigator.clipboard?.writeText(FIXED_PROJECT)} style={{
                   padding:'3px 9px', background:'none',
                   border:'1px solid rgba(255,255,255,0.1)', borderRadius:4,
                   color:'rgba(255,255,255,0.32)', fontSize:9, cursor:'pointer',
@@ -1091,7 +1129,7 @@ function RightPanel({ phase, done, completedCount, theme }) {
                 fontFamily:"'JetBrains Mono',monospace", fontSize:10, lineHeight:'17px',
                 overflowX:'auto', animation:'fadeSlideUp 0.3s ease',
               }}>
-                {FIXED_CODE.split('\n').map((ln, i) => (
+                {FIXED_PROJECT.split('\n').map((ln, i) => (
                   <div key={i} style={{
                     color: ln.includes('# ✅') ? c.p :
                       ln.trim().startsWith('#') ? 'rgba(255,255,255,0.22)' :
@@ -1116,7 +1154,7 @@ function App() {
   const [statuses,  setStatuses] = useState(AGENTS.map(() => 'idle'));
   const [activeIdx, setActiveIdx]= useState(-1);
   const [completed, setCompleted]= useState(0);
-  const [code,      setCode]     = useState(SAMPLE_CODE);
+  const [code,      setCode]     = useState(PROJECT_TREE);
   const timers = useRef([]);
 
   const clearAll = () => { timers.current.forEach(clearTimeout); timers.current = []; };
@@ -1199,7 +1237,7 @@ function App() {
               : 'rgba(255,255,255,0.09)',
             transition:'color 0.4s',
           }}>
-            {phase === 'idle'    && 'paste code · run vibefix · ship production code'}
+            {phase === 'idle'    && 'choose project folder - scan repo - write fixed copy'}
             {phase === 'running' && activeIdx >= 0 && `${AGENTS[activeIdx].label} agent running…`}
             {phase === 'done'    && ''}
           </div>
