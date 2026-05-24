@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VibeFix — AI Code Audit Pipeline</title>
+  <meta name="description" content="VibeFix is an AI-powered multi-agent code auditing pipeline. Paste your code, run the pipeline, and get security, performance, and error-handling reports — plus a fully rewritten, fixed version." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #09090f;
+      --bg2:       #0f0f1a;
+      --bg3:       #141425;
+      --surface:   #1a1a2e;
+      --surface2:  #1f1f38;
+      --border:    rgba(255,255,255,0.07);
+      --border2:   rgba(255,255,255,0.12);
+
+      --purple:    #7c3aed;
+      --purple-l:  #a855f7;
+      --purple-ll: #c084fc;
+      --blue:      #3b82f6;
+      --blue-l:    #60a5fa;
+      --cyan:      #06b6d4;
+      --pink:      #ec4899;
+      --amber:     #f59e0b;
+      --green:     #10b981;
+      --red:       #ef4444;
+      --red-l:     #f87171;
+
+      --text:      #f1f5f9;
+      --text-2:    #94a3b8;
+      --text-3:    #475569;
+
+      --radius:    12px;
+      --radius-lg: 20px;
+      --shadow:    0 4px 32px rgba(0,0,0,0.5);
+      --glow-p:    0 0 40px rgba(124,58,237,0.25);
+      --glow-b:    0 0 40px rgba(59,130,246,0.2);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Scrollbar ─────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--purple); }
+
+    /* ─── Ambient background ───────────────────────────────── */
+    .ambient {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+    .ambient::before {
+      content: '';
+      position: absolute;
+      top: -40%; left: -20%;
+      width: 80vw; height: 80vw;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+    .ambient::after {
+      content: '';
+      position: absolute;
+      bottom: -30%; right: -20%;
+      width: 70vw; height: 70vw;
+      background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%);
+      animation: drift 22s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(4vw, 6vh) scale(1.08); }
+    }
+
+    /* ─── Layout ────────────────────────────────────────────── */
+    .wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* ─── Nav ───────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(20px) saturate(1.4);
+      background: rgba(9,9,15,0.8);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .logo span { background: linear-gradient(90deg, var(--purple-l), var(--blue-l)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-badge {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      padding: 3px 8px; border-radius: 99px;
+      background: rgba(124,58,237,0.2); color: var(--purple-ll);
+      border: 1px solid rgba(124,58,237,0.3);
+    }
+
+    /* ─── Hero ──────────────────────────────────────────────── */
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--purple-ll);
+      padding: 6px 14px; border-radius: 99px;
+      background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25);
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      font-weight: 900; line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 20px;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(135deg, #a855f7 0%, #60a5fa 50%, #06b6d4 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 18px; color: var(--text-2); max-width: 520px;
+      margin: 0 auto 48px; line-height: 1.7;
+    }
+
+    /* ─── Pipeline Flow ─────────────────────────────────────── */
+    .pipeline-flow {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap; margin-bottom: 56px;
+    }
+    .pipeline-chip {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      padding: 6px 12px; border-radius: 99px;
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--text-2);
+      transition: all 0.3s;
+      cursor: default;
+      position: relative;
+    }
+    .pipeline-chip.active {
+      border-color: var(--purple);
+      background: rgba(124,58,237,0.15);
+      color: var(--purple-ll);
+      box-shadow: 0 0 12px rgba(124,58,237,0.3);
+    }
+    .pipeline-chip.done {
+      border-color: var(--green);
+      background: rgba(16,185,129,0.1);
+      color: var(--green);
+    }
+    .pipeline-chip .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+    }
+    .pipeline-chip.active .dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.6); opacity: 0.5; }
+    }
+    .pipeline-arrow {
+      width: 28px; height: 1px;
+      background: linear-gradient(90deg, var(--border2), var(--purple), var(--border2));
+      position: relative;
+      flex-shrink: 0;
+    }
+    .pipeline-arrow::after {
+      content: '';
+      position: absolute; right: -4px; top: -3px;
+      width: 0; height: 0;
+      border-left: 6px solid var(--purple);
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+    }
+
+    /* ─── Editor Area ───────────────────────────────────────── */
+    .editor-section { margin-bottom: 40px; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::before {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
+
+    .editor-card {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .editor-card:focus-within {
+      border-color: rgba(124,58,237,0.5);
+      box-shadow: var(--glow-p);
+    }
+    .editor-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .editor-dots { display: flex; gap: 6px; }
+    .editor-dots span {
+      width: 12px; height: 12px; border-radius: 50%;
+    }
+    .editor-dots span:nth-child(1) { background: #ef4444; }
+    .editor-dots span:nth-child(2) { background: #f59e0b; }
+    .editor-dots span:nth-child(3) { background: #10b981; }
+    .editor-filename {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--text-3);
+    }
+    .editor-lang-select {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px; font-weight: 600;
+      background: var(--bg3); color: var(--text-2);
+      border: 1px solid var(--border2); border-radius: 6px;
+      padding: 4px 8px; cursor: pointer;
+      outline: none;
+    }
+    .editor-lang-select option { background: var(--bg2); }
+
+    #code-input {
+      width: 100%; min-height: 280px;
+      background: var(--bg2);
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 1.7;
+      padding: 20px 24px;
+      border: none; outline: none; resize: vertical;
+      tab-size: 4;
+      caret-color: var(--purple-l);
+    }
+    #code-input::placeholder { color: var(--text-3); }
+    #code-input::selection { background: rgba(124,58,237,0.3); }
+
+    /* ─── Run Button ────────────────────────────────────────── */
+    .run-row {
+      display: flex; align-items: center; gap: 16px;
+      margin-top: 20px;
+    }
+    .btn-run {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 32px;
+      font-size: 15px; font-weight: 700; letter-spacing: 0.3px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
+      border: none; border-radius: var(--radius); cursor: pointer;
+      position: relative; overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.3s;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+    }
+    .btn-run::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .btn-run:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,58,237,0.5); }
+    .btn-run:hover::before { opacity: 1; }
+    .btn-run:active { transform: translateY(0); }
+    .btn-run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-run .btn-icon { font-size: 18px; }
+
+    .btn-sample {
+      padding: 12px 20px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-2);
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-sample:hover { color: var(--text); border-color: var(--purple); background: rgba(124,58,237,0.1); }
+
+    .btn-clear {
+      padding: 12px 16px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-3);
+      background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius); cursor: pointer;
+      transition: all 0.2s; margin-left: auto;
+    }
+    .btn-clear:hover { color: var(--red-l); border-color: var(--red); }
+
+    /* ─── Progress Bar ──────────────────────────────────────── */
+    .progress-wrap {
+      display: none; margin-top: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .progress-wrap.visible { display: block; }
+    .progress-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .progress-title {
+      font-size: 13px; font-weight: 600; color: var(--text-2);
+    }
+    .progress-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; color: var(--purple-ll);
+    }
+    .progress-bar-track {
+      height: 6px; background: var(--bg3);
+      border-radius: 3px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--purple), var(--blue), var(--cyan));
+      background-size: 200% 100%;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.6s ease;
+      animation: shimmer 2s linear infinite;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 0% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-log {
+      margin-top: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-3); line-height: 1.8;
+    }
+    .progress-log .log-line { animation: fadeSlide 0.3s ease; }
+    .progress-log .log-line.ok { color: var(--green); }
+    .progress-log .log-line.running { color: var(--purple-ll); }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Results Section ───────────────────────────────────── */
+    #results-section { display: none; padding-bottom: 80px; }
+    #results-section.visible { display: block; }
+
+    /* ─── Verdict Banner ────────────────────────────────────── */
+    .verdict-banner {
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 32px;
+      display: flex; align-items: center; gap: 24px;
+      position: relative; overflow: hidden;
+    }
+    .verdict-banner.danger { background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); border: 1px solid rgba(239,68,68,0.3); }
+    .verdict-banner.warning { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.3); }
+    .verdict-banner.success { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.3); }
+    .verdict-emoji { font-size: 48px; flex-shrink: 0; }
+    .verdict-text h2 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+    .verdict-text p { font-size: 15px; color: var(--text-2); line-height: 1.5; }
+    .verdict-stats {
+      margin-left: auto; display: flex; gap: 20px; flex-shrink: 0;
+    }
+    .v-stat {
+      text-align: center;
+    }
+    .v-stat-num {
+      font-size: 28px; font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .v-stat-num.red { color: var(--red-l); }
+    .v-stat-num.amber { color: var(--amber); }
+    .v-stat-num.green { color: var(--green); }
+    .v-stat-label { font-size: 11px; color: var(--text-3); font-weight: 600; letter-spacing: 0.5px; }
+
+    /* ─── Tabs ──────────────────────────────────────────────── */
+    .tabs-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 18px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-3);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--text-2); border-color: var(--border2); }
+    .tab-btn.active {
+      color: var(--text);
+      background: rgba(124,58,237,0.15);
+      border-color: rgba(124,58,237,0.5);
+      box-shadow: 0 0 12px rgba(124,58,237,0.2);
+    }
+    .tab-badge {
+      font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 99px;
+      background: rgba(255,255,255,0.08);
+    }
+    .tab-btn.active .tab-badge { background: rgba(124,58,237,0.3); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: panelIn 0.3s ease; }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Manifest Card ─────────────────────────────────────── */
+    .manifest-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .m-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 16px;
+    }
+    .m-card-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px; }
+    .m-card-val { font-size: 18px; font-weight: 700; color: var(--text); }
+    .m-card-val.mono { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+
+    .risk-flags {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;
+    }
+    .flag-chip {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600;
+      padding: 6px 12px; border-radius: 8px;
+    }
+    .flag-chip.danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red-l); }
+    .flag-chip.safe   { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: var(--green); }
+
+    .complexity-bar {
+      margin-top: 8px;
+      height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden;
+    }
+    .complexity-fill {
+      height: 100%; border-radius: 4px;
+      background: linear-gradient(90deg, var(--green), var(--amber), var(--red));
+      transition: width 1s ease;
+    }
+
+    /* ─── Issue Cards ───────────────────────────────────────── */
+    .severity-section { margin-bottom: 24px; }
+    .severity-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .severity-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .severity-dot.critical { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+    .severity-dot.high     { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+    .severity-dot.medium   { background: #06b6d4; box-shadow: 0 0 6px #06b6d4; }
+    .severity-dot.low      { background: #10b981; box-shadow: 0 0 6px #10b981; }
+    .severity-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .severity-label.critical { color: var(--red-l); }
+    .severity-label.high     { color: var(--amber); }
+    .severity-label.medium   { color: var(--cyan); }
+    .severity-label.low      { color: var(--green); }
+    .severity-count {
+      font-size: 11px; color: var(--text-3); font-weight: 600;
+    }
+
+    .issue-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .issue-card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 0; overflow: hidden;
+      border: 1px solid var(--border);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .issue-card:hover { border-color: var(--border2); box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+    .issue-card.critical { border-left: 3px solid var(--red); }
+    .issue-card.high     { border-left: 3px solid var(--amber); }
+    .issue-card.medium   { border-left: 3px solid var(--cyan); }
+    .issue-card.low      { border-left: 3px solid var(--green); }
+
+    .issue-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px 0 16px;
+    }
+    .issue-category {
+      font-size: 12px; font-weight: 700;
+      padding: 3px 10px; border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-2);
+    }
+    .issue-body { padding: 10px 16px 14px 16px; }
+    .issue-desc { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 8px; }
+    .issue-meta {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-top: 10px;
+    }
+    .issue-meta-item { }
+    .issue-meta-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-3); margin-bottom: 3px; }
+    .issue-meta-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-2);
+      background: var(--bg3); padding: 5px 8px; border-radius: 6px;
+      word-break: break-word;
+    }
+    .issue-fix {
+      margin-top: 10px; padding: 8px 12px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 8px;
+      font-size: 12px; color: var(--green); line-height: 1.5;
+    }
+    .issue-fix::before { content: '✓ '; font-weight: 700; }
+
+    /* ─── Orchestrator ──────────────────────────────────────── */
+    .fix-plan-list { display: flex; flex-direction: column; gap: 10px; }
+    .fix-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      transition: border-color 0.2s;
+    }
+    .fix-item:hover { border-color: var(--border2); }
+    .fix-priority {
+      width: 30px; height: 30px; flex-shrink: 0;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border2);
+      color: var(--text-2);
+    }
+    .fix-content { flex: 1; min-width: 0; }
+    .fix-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .fix-action { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .fix-agent-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 3px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.06); color: var(--text-3);
+      flex-shrink: 0; align-self: center;
+    }
+
+    /* ─── Rewriter / Fixed Code ─────────────────────────────── */
+    .rewriter-stats {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px; margin-bottom: 24px;
+    }
+    .r-stat-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 16px; text-align: center;
+    }
+    .r-stat-num { font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .r-stat-num.green { color: var(--green); }
+    .r-stat-num.amber { color: var(--amber); }
+    .r-stat-label { font-size: 11px; color: var(--text-3); font-weight: 600; letter-spacing: 0.5px; margin-top: 4px; }
+
+    .changes-list { margin-bottom: 24px; }
+    .change-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px; color: var(--text-2);
+    }
+    .change-item:last-child { border-bottom: none; }
+    .change-item::before { content: '✅'; flex-shrink: 0; }
+
+    .code-output-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    .code-output-title {
+      font-size: 12px; font-weight: 600; color: var(--text-2);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .btn-copy {
+      font-size: 12px; font-weight: 600;
+      padding: 6px 14px; border-radius: 8px;
+      background: rgba(124,58,237,0.15); color: var(--purple-ll);
+      border: 1px solid rgba(124,58,237,0.3); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-copy:hover { background: rgba(124,58,237,0.25); }
+    .btn-copy.copied { color: var(--green); border-color: var(--green); background: rgba(16,185,129,0.1); }
+
+    .code-output {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; line-height: 1.8;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 480px; overflow-y: auto;
+    }
+
+    /* ─── Empty State ───────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .empty-sub { font-size: 14px; color: var(--text-3); }
+
+    /* ─── Info chips ─────────────────────────────────────────── */
+    .info-row {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;
+    }
+    .info-chip {
+      font-size: 12px; font-weight: 600;
+      padding: 5px 12px; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border2);
+      color: var(--text-2);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ─── Divider ────────────────────────────────────────────── */
+    .divider {
+      height: 1px; background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* ─── Spinner ────────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    .spinner.visible { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Footer ────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0;
+      text-align: center;
+      font-size: 12px; color: var(--text-3);
+    }
+
+    /* ─── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 36px; }
+      .pipeline-flow { gap: 4px; }
+      .pipeline-arrow { width: 14px; }
+      .verdict-stats { display: none; }
+      .issue-meta { grid-template-columns: 1fr; }
+      .verdict-banner { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="ambient"></div>
+
+<!-- ── Nav ─────────────────────────────────────────────────── -->
+<nav>
+  <div class="wrap nav-inner">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <span>VibeFix</span>
+    </div>
+    <div class="nav-badge">AI Pipeline v1.0</div>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow">
+      <span>●</span> Powered by Gemini 2.0 Flash
+    </div>
+    <h1>Fix your <span class="grad">vibe-coded</span><br/>mess in seconds.</h1>
+    <p class="hero-sub">
+      Paste any code snippet. Six specialized AI agents audit it for security flaws, performance bottlenecks, and error-handling gaps — then rewrite it clean.
+    </p>
+
+    <!-- Pipeline flow visualization -->
+    <div class="pipeline-flow" id="pipeline-flow">
+      <div class="pipeline-chip" id="chip-intake" data-step="0">
+        <span class="dot"></span> Intake
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-chip" id="chip-security" data-step="1">
+        <span class="dot"></span> Security
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-chip" id="chip-perf" data-step="2">
+        <span class="dot"></span> Performance
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-chip" id="chip-error" data-step="3">
+        <span class="dot"></span> Errors
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-chip" id="chip-orch" data-step="4">
+        <span class="dot"></span> Orchestrator
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-chip" id="chip-rewrite" data-step="5">
+        <span class="dot"></span> Rewriter
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Editor ───────────────────────────────────────────────── -->
+<main class="wrap">
+  <section class="editor-section">
+    <div class="section-label">Your Code</div>
+
+    <div class="editor-card">
+      <div class="editor-topbar">
+        <div class="editor-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="editor-filename">code_to_audit.py</div>
+        <select class="editor-lang-select" id="lang-select">
+          <option value="python">Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="go">Go</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <textarea
+        id="code-input"
+        placeholder="# Paste your vibe-coded code here...&#10;# VibeFix will run 6 AI agents to audit and rewrite it."
+        spellcheck="false"
+        autocomplete="off"
+        autocorrect="off"
+      ></textarea>
+    </div>
+
+    <div class="run-row">
+      <button class="btn-run" id="btn-run" onclick="runPipeline()">
+        <div class="spinner" id="run-spinner"></div>
+        <span class="btn-icon" id="run-icon">⚡</span>
+        <span id="run-label">Run VibeFix Pipeline</span>
+      </button>
+      <button class="btn-sample" id="btn-sample" onclick="loadSample()">Load Sample Code</button>
+      <button class="btn-clear" onclick="clearAll()">✕ Clear</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-header">
+        <div class="progress-title" id="progress-title">Initializing pipeline…</div>
+        <div class="progress-pct" id="progress-pct">0%</div>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+      </div>
+      <div class="progress-log" id="progress-log"></div>
+    </div>
+  </section>
+
+  <!-- ── Results ──────────────────────────────────────────── -->
+  <section id="results-section">
+    <div class="section-label">Audit Results</div>
+
+    <!-- Verdict banner -->
+    <div class="verdict-banner" id="verdict-banner">
+      <div class="verdict-emoji" id="verdict-emoji">⚠️</div>
+      <div class="verdict-text">
+        <h2 id="verdict-title">DO NOT SHIP</h2>
+        <p id="verdict-oneliner">Running analysis…</p>
+      </div>
+      <div class="verdict-stats">
+        <div class="v-stat">
+          <div class="v-stat-num red" id="stat-critical">0</div>
+          <div class="v-stat-label">Critical</div>
+        </div>
+        <div class="v-stat">
+          <div class="v-stat-num amber" id="stat-high">0</div>
+          <div class="v-stat-label">High</div>
+        </div>
+        <div class="v-stat">
+          <div class="v-stat-num green" id="stat-total">0</div>
+          <div class="v-stat-label">Total Issues</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-row" id="tabs-row">
+      <button class="tab-btn active" id="tab-intake-btn" onclick="switchTab('intake')">
+        📋 Intake <span class="tab-badge" id="tbadge-intake">—</span>
+      </button>
+      <button class="tab-btn" id="tab-security-btn" onclick="switchTab('security')">
+        🔐 Security <span class="tab-badge" id="tbadge-security">0</span>
+      </button>
+      <button class="tab-btn" id="tab-perf-btn" onclick="switchTab('perf')">
+        ⚡ Performance <span class="tab-badge" id="tbadge-perf">0</span>
+      </button>
+      <button class="tab-btn" id="tab-error-btn" onclick="switchTab('error')">
+        🛡️ Errors <span class="tab-badge" id="tbadge-error">0</span>
+      </button>
+      <button class="tab-btn" id="tab-orch-btn" onclick="switchTab('orch')">
+        🎯 Fix Plan <span class="tab-badge" id="tbadge-orch">0</span>
+      </button>
+      <button class="tab-btn" id="tab-rewrite-btn" onclick="switchTab('rewrite')">
+        ✨ Fixed Code <span class="tab-badge" id="tbadge-rewrite">—</span>
+      </button>
+    </div>
+
+    <!-- Tab panels -->
+
+    <!-- INTAKE -->
+    <div class="tab-panel active" id="tab-intake">
+      <div class="manifest-grid" id="manifest-grid">
+        <div class="m-card"><div class="m-card-label">Language</div><div class="m-card-val mono" id="m-language">—</div></div>
+        <div class="m-card"><div class="m-card-label">Framework</div><div class="m-card-val mono" id="m-framework">—</div></div>
+        <div class="m-card"><div class="m-card-label">Files Detected</div><div class="m-card-val" id="m-files">—</div></div>
+        <div class="m-card">
+          <div class="m-card-label">Complexity</div>
+          <div class="m-card-val" id="m-complexity">—<small style="font-size:12px;color:var(--text-3)">/10</small></div>
+          <div class="complexity-bar"><div class="complexity-fill" id="m-complexity-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="m-card" style="margin-bottom:16px">
+        <div class="m-card-label">Summary</div>
+        <div style="font-size:14px;color:var(--text-2);line-height:1.7;margin-top:6px" id="m-summary">—</div>
+      </div>
+      <div class="m-card">
+        <div class="m-card-label">Risk Flags</div>
+        <div class="risk-flags" id="m-risk-flags"></div>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="tab-panel" id="tab-security">
+      <div id="security-content"><div class="empty-state"><div class="empty-icon">🔐</div><div class="empty-title">Security audit not yet run</div></div></div>
+    </div>
+
+    <!-- PERFORMANCE -->
+    <div class="tab-panel" id="tab-perf">
+      <div id="perf-content"><div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">Performance audit not yet run</div></div></div>
+    </div>
+
+    <!-- ERRORS -->
+    <div class="tab-panel" id="tab-error">
+      <div id="error-content"><div class="empty-state"><div class="empty-icon">🛡️</div><div class="empty-title">Error audit not yet run</div></div></div>
+    </div>
+
+    <!-- ORCHESTRATOR -->
+    <div class="tab-panel" id="tab-orch">
+      <div id="orch-content"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Orchestrator not yet run</div></div></div>
+    </div>
+
+    <!-- REWRITER -->
+    <div class="tab-panel" id="tab-rewrite">
+      <div id="rewrite-content"><div class="empty-state"><div class="empty-icon">✨</div><div class="empty-title">Rewriter not yet run</div></div></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    VibeFix &mdash; AI Code Audit Pipeline &bull; Intake → Security → Performance → Errors → Orchestrator → Rewriter
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   VibeFix Pipeline — Demo / Simulation Engine
+   ═══════════════════════════════════════════════════════════ */
+
+const SAMPLE_CODE = `from flask import Flask, request
+
+app = Flask(__name__)
+
+DB_PASSWORD = "admin123"
+
+@app.route('/do_everything', methods=['POST'])
+def god_function():
+    # No try/except anywhere
+    user = request.json['username']
+    password = request.json['password']
+    
+    # Auth logic
+    if password != "secret":
+        raise Exception("Invalid credentials!")
+        
+    # Database query
+    db_conn = connect_database(DB_PASSWORD)
+    data = db_conn.execute(f"SELECT * FROM user_data WHERE user = '{user}'")
+    
+    # Email send
+    send_notification_email(user, "You queried the DB!")
+    
+    return f"Success: {data}"
+`;
+
+/* ─── Demo data matching the exact sample code ─── */
+const DEMO_RESULTS = {
+  intake: {
+    language: "Python",
+    framework: "Flask",
+    file_count: 1,
+    complexity_score: 7,
+    has_env_vars: false,
+    has_database: true,
+    has_auth: true,
+    summary: "A Flask web application exposing a single POST route that handles authentication, database querying, and email notifications all in one function — classic 'god function' anti-pattern with multiple critical security flaws."
+  },
+  security: {
+    verdict: "UNSAFE - DO NOT SHIP",
+    issues: [
+      { severity: "CRITICAL", category: "Hardcoded Secrets", description: "Database password 'admin123' is hardcoded directly in source code.", line_hint: "near 'DB_PASSWORD = \"admin123\"'", fix: "Move to os.environ.get('DB_PASSWORD') and store in .env file." },
+      { severity: "CRITICAL", category: "SQL Injection", description: "f-string interpolation in SQL query allows arbitrary SQL execution.", line_hint: "near 'db_conn.execute(f\"SELECT * FROM user_data WHERE user = \\'{user}\\'\")'", fix: "Use parameterized queries: db_conn.execute('SELECT * FROM user_data WHERE user = ?', (user,))" },
+      { severity: "CRITICAL", category: "Hardcoded Credentials", description: "Auth password comparison against literal string 'secret' is trivially bypassable.", line_hint: "near 'if password != \"secret\"'", fix: "Use hashed password storage (bcrypt) and compare against stored hash." },
+      { severity: "HIGH", category: "Missing Input Validation", description: "request.json['username'] accessed without validation — KeyError possible, and no type/length checks.", line_hint: "near 'user = request.json[\\'username\\']'", fix: "Validate and sanitize all user input before use." },
+      { severity: "MEDIUM", category: "Information Leakage", description: "Raw exception messages are raised and may be returned to the client, leaking internal details.", line_hint: "near 'raise Exception(\"Invalid credentials!\")'", fix: "Return generic error responses; log full detail server-side only." }
+    ]
+  },
+  performance: {
+    verdict: "NEEDS OPTIMIZATION",
+    estimated_bottleneck: "Database layer",
+    issues: [
+      { severity: "HIGH", pattern: "Unbounded Query", description: "SELECT * returns all columns and all rows with no LIMIT clause.", line_hint: "near 'SELECT * FROM user_data'", impact: "Memory exhaustion at scale with large datasets.", fix: "Add LIMIT and select only required columns: SELECT id, name FROM user_data WHERE user=? LIMIT 1" },
+      { severity: "MEDIUM", pattern: "Synchronous External Call", description: "send_notification_email() is called synchronously inside the request handler.", line_hint: "near 'send_notification_email(user, ...)'", impact: "Adds latency proportional to email service response time.", fix: "Offload to a task queue (Celery, RQ) and send email asynchronously." },
+      { severity: "LOW", pattern: "No Connection Pooling", description: "connect_database() called on every request with no connection pooling.", line_hint: "near 'db_conn = connect_database(DB_PASSWORD)'", impact: "High connection overhead under load.", fix: "Use SQLAlchemy with connection pooling or a connection pool manager." }
+    ]
+  },
+  error: {
+    verdict: "NO ERROR HANDLING",
+    has_any_error_handling: false,
+    issues: [
+      { severity: "HIGH", issue_type: "No Try/Except", description: "Entire route handler has zero error handling. Any exception crashes the endpoint.", line_hint: "entire god_function body", consequence: "Any DB error, email failure, or bad input returns an unhandled 500 to the user.", fix: "Wrap the entire function body in try/except and return appropriate HTTP error codes." },
+      { severity: "HIGH", issue_type: "Missing Null Check", description: "request.json may be None if Content-Type is not application/json.", line_hint: "near 'user = request.json[\\'username\\']'", consequence: "AttributeError crash: NoneType has no attribute '__getitem__'", fix: "Check 'if request.json is None: return jsonify(error=...), 400' before accessing keys." },
+      { severity: "MEDIUM", issue_type: "Uncaught DB Exception", description: "connect_database() and db_conn.execute() can raise connection/query errors with no handler.", line_hint: "near 'db_conn = connect_database(...)'", consequence: "Unhandled exception propagates and may expose stack trace.", fix: "Wrap DB calls in try/except and return 503 on connection failure." },
+      { severity: "LOW", issue_type: "Bare Exception Exposure", description: "raise Exception(...) inside route handler bubbles up as an HTTP 500.", line_hint: "near 'raise Exception(\"Invalid credentials!\")'", consequence: "Client receives raw exception detail; bad UX and security leak.", fix: "Return flask.abort(401) or jsonify({'error': 'unauthorized'}) instead." }
+    ]
+  },
+  orchestrator: {
+    overall_verdict: "DO NOT SHIP",
+    ship_ready: false,
+    total_issues: 9,
+    one_liner: "This code has 3 critical security vulnerabilities that make it trivially exploitable — fix them before any other work.",
+    fix_plan: [
+      { priority: 1, source_agent: "Security", severity: "CRITICAL", title: "Remove Hardcoded DB Password", action: "Replace DB_PASSWORD = 'admin123' with os.environ.get('DB_PASSWORD') and add to .env." },
+      { priority: 2, source_agent: "Security", severity: "CRITICAL", title: "Fix SQL Injection", action: "Use parameterized query: cursor.execute('SELECT ... WHERE user=?', (user,))" },
+      { priority: 3, source_agent: "Security", severity: "CRITICAL", title: "Remove Hardcoded Auth Password", action: "Implement bcrypt password hashing; compare with stored hash, never plain text." },
+      { priority: 4, source_agent: "Error Handling", severity: "HIGH", title: "Add Global Error Handling", action: "Wrap entire god_function in try/except; return proper HTTP status codes." },
+      { priority: 5, source_agent: "Error Handling", severity: "HIGH", title: "Validate request.json", action: "Check request.json is not None and required keys exist before accessing them." },
+      { priority: 6, source_agent: "Security", severity: "HIGH", title: "Validate & Sanitize User Input", action: "Add type checks, length limits, and allowlist validation on username/password." },
+      { priority: 7, source_agent: "Performance", severity: "HIGH", title: "Limit DB Query Scope", action: "Replace SELECT * with specific columns and add LIMIT 1 clause." },
+      { priority: 8, source_agent: "Performance", severity: "MEDIUM", title: "Async Email Sending", action: "Move send_notification_email() to a background task queue (Celery/RQ)." },
+      { priority: 9, source_agent: "Performance", severity: "LOW", title: "Add Connection Pooling", action: "Use SQLAlchemy engine with pool_size configured for production load." }
+    ]
+  },
+  rewriter: {
+    final_verdict: "SIGNIFICANTLY IMPROVED",
+    fixes_applied: 9,
+    fixes_skipped: 0,
+    changes_count: 9,
+    changes_made: [
+      "Moved DB_PASSWORD to os.environ.get('DB_PASSWORD')",
+      "Fixed SQL injection with parameterized query",
+      "Removed hardcoded auth password — returns 401 with generic message",
+      "Added try/except wrapper around entire route handler",
+      "Added request.json None-check with 400 response",
+      "Added username/password input validation (type + length)",
+      "Replaced SELECT * with specific columns + LIMIT 1",
+      "Added comment placeholder for async email task",
+      "Added SQLAlchemy connection pool note in comment"
+    ],
+    fixed_code: `import os
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+# VIBEFIX: Moved hardcoded password to environment variable
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+
+@app.route('/do_everything', methods=['POST'])
+def god_function():
+    # VIBEFIX: Added global try/except with proper HTTP error responses
+    try:
+        # VIBEFIX: Validate request body exists and is JSON
+        if not request.json:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        user = request.json.get("username")
+        password = request.json.get("password")
+
+        # VIBEFIX: Input validation — type and length checks
+        if not isinstance(user, str) or not isinstance(password, str):
+            return jsonify({"error": "Invalid input types"}), 400
+        if len(user) > 64 or len(password) > 128:
+            return jsonify({"error": "Input too long"}), 400
+
+        # VIBEFIX: Removed hardcoded 'secret' — return 401 for invalid credentials
+        if not authenticate_user(user, password):
+            return jsonify({"error": "Invalid credentials"}), 401
+
+        # VIBEFIX: SQL injection fixed — use parameterized query + LIMIT 1
+        db_conn = connect_database(DB_PASSWORD)
+        data = db_conn.execute(
+            "SELECT id, username FROM user_data WHERE user = ? LIMIT 1",
+            (user,)
+        ).fetchone()
+
+        if data is None:
+            return jsonify({"error": "User not found"}), 404
+
+        # VIBEFIX: Email moved to async task queue (use Celery/RQ in production)
+        # async_send_notification_email.delay(user, "You queried the DB!")
+
+        return jsonify({"success": True, "user": data["username"]}), 200
+
+    except ConnectionError as e:
+        # VIBEFIX: DB connection error handled separately — returns 503
+        app.logger.error(f"DB connection failed: {e}")
+        return jsonify({"error": "Service temporarily unavailable"}), 503
+    except Exception as e:
+        # VIBEFIX: All other exceptions caught — no stack trace leakage
+        app.logger.exception(f"Unexpected error in god_function: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+`
+  }
+};
+
+/* ─── State ─── */
+let pipelineRunning = false;
+let currentTab = 'intake';
+
+/* ─── Helpers ─── */
+function qs(sel) { return document.querySelector(sel); }
+
+function loadSample() {
+  qs('#code-input').value = SAMPLE_CODE;
+  qs('#lang-select').value = 'python';
+  qs('#code-input').focus();
+}
+
+function clearAll() {
+  qs('#code-input').value = '';
+  qs('#results-section').classList.remove('visible');
+  qs('#progress-wrap').classList.remove('visible');
+  resetChips();
+}
+
+function resetChips() {
+  document.querySelectorAll('.pipeline-chip').forEach(c => {
+    c.classList.remove('active', 'done');
+  });
+}
+
+function setChipState(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state) el.classList.add(state);
+}
+
+function log(msg, type = '') {
+  const logEl = qs('#progress-log');
+  const div = document.createElement('div');
+  div.className = `log-line ${type}`;
+  div.textContent = msg;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setProgress(pct, title) {
+  qs('#progress-bar').style.width = pct + '%';
+  qs('#progress-pct').textContent = pct + '%';
+  if (title) qs('#progress-title').textContent = title;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ─── Pipeline Runner ─── */
+async function runPipeline() {
+  const code = qs('#code-input').value.trim();
+  if (!code) {
+    qs('#code-input').focus();
+    qs('#code-input').style.borderBottom = '2px solid var(--red)';
+    setTimeout(() => qs('#code-input').style.borderBottom = '', 1500);
+    return;
+  }
+  if (pipelineRunning) return;
+  pipelineRunning = true;
+
+  // UI: running state
+  const btn = qs('#btn-run');
+  const icon = qs('#run-icon');
+  const label = qs('#run-label');
+  const spinner = qs('#run-spinner');
+  btn.disabled = true;
+  icon.style.display = 'none';
+  spinner.classList.add('visible');
+  label.textContent = 'Running Pipeline…';
+
+  qs('#progress-wrap').classList.add('visible');
+  qs('#progress-log').innerHTML = '';
+  qs('#results-section').classList.remove('visible');
+  resetChips();
+
+  const steps = [
+    { chip: 'chip-intake',   pct: 10, title: 'Running Intake Agent…',         logMsg: '▶ [Intake] Analyzing code structure…' },
+    { chip: 'chip-intake',   pct: 18, title: 'Intake complete',                logMsg: '✓ [Intake] Manifest generated', done: true, logType: 'ok' },
+    { chip: 'chip-security', pct: 25, title: 'Running Security Audit…',        logMsg: '▶ [Security] Scanning for vulnerabilities…' },
+    { chip: 'chip-security', pct: 38, title: 'Security audit complete',         logMsg: '✓ [Security] 3 CRITICAL, 1 HIGH, 1 MEDIUM found', done: true, logType: 'ok' },
+    { chip: 'chip-perf',     pct: 46, title: 'Running Performance Audit…',     logMsg: '▶ [Performance] Detecting bottlenecks…' },
+    { chip: 'chip-perf',     pct: 58, title: 'Performance audit complete',      logMsg: '✓ [Performance] 3 issues found — bottleneck: Database layer', done: true, logType: 'ok' },
+    { chip: 'chip-error',    pct: 64, title: 'Running Error Handling Audit…',  logMsg: '▶ [Errors] Checking error handling coverage…' },
+    { chip: 'chip-error',    pct: 75, title: 'Error audit complete',            logMsg: '✓ [Errors] NO ERROR HANDLING detected — 4 issues', done: true, logType: 'ok' },
+    { chip: 'chip-orch',     pct: 82, title: 'Running Orchestrator…',          logMsg: '▶ [Orchestrator] Synthesizing fix plan…' },
+    { chip: 'chip-orch',     pct: 90, title: 'Orchestration complete',          logMsg: '✓ [Orchestrator] 9-item prioritized fix plan ready', done: true, logType: 'ok' },
+    { chip: 'chip-rewrite',  pct: 94, title: 'Running Code Rewriter…',         logMsg: '▶ [Rewriter] Applying all 9 fixes…' },
+    { chip: 'chip-rewrite',  pct: 100,title: 'Pipeline complete! ✅',           logMsg: '✓ [Rewriter] Fixed code generated — SIGNIFICANTLY IMPROVED', done: true, logType: 'ok' },
+  ];
+
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    setChipState(s.chip, s.done ? 'done' : 'active');
+    setProgress(s.pct, s.title);
+    log(s.logMsg, s.logType || 'running');
+    await sleep(i < 2 ? 600 : 500);
+  }
+
+  await sleep(400);
+
+  // Populate results
+  populateResults(DEMO_RESULTS);
+
+  // Show results
+  qs('#results-section').classList.add('visible');
+  qs('#results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Reset button
+  btn.disabled = false;
+  icon.style.display = '';
+  spinner.classList.remove('visible');
+  label.textContent = 'Run Again';
+  pipelineRunning = false;
+}
+
+/* ─── Populate all panels ─── */
+function populateResults(data) {
+  populateIntake(data.intake);
+  populateSecurity(data.security);
+  populatePerformance(data.performance);
+  populateErrors(data.error);
+  populateOrchestrator(data.orchestrator);
+  populateRewriter(data.rewriter);
+  populateVerdict(data.orchestrator, data.security);
+  updateTabBadges(data);
+  switchTab('intake');
+}
+
+function populateVerdict(orch, sec) {
+  const banner = qs('#verdict-banner');
+  const verdict = orch.overall_verdict;
+  const emoji = orch.ship_ready ? '🚀' : (verdict === 'DO NOT SHIP' ? '🚫' : '⚠️');
+  const cls = orch.ship_ready ? 'success' : (verdict === 'DO NOT SHIP' ? 'danger' : 'warning');
+
+  banner.className = `verdict-banner ${cls}`;
+  qs('#verdict-emoji').textContent = emoji;
+  qs('#verdict-title').textContent = verdict;
+  qs('#verdict-oneliner').textContent = orch.one_liner;
+
+  const critCount = sec.issues.filter(i => i.severity === 'CRITICAL').length;
+  const highCount = sec.issues.filter(i => i.severity === 'HIGH').length;
+  qs('#stat-critical').textContent = critCount;
+  qs('#stat-high').textContent = highCount;
+  qs('#stat-total').textContent = orch.total_issues;
+}
+
+function updateTabBadges(data) {
+  qs('#tbadge-intake').textContent = data.intake.language;
+  qs('#tbadge-security').textContent = data.security.issues.length;
+  qs('#tbadge-perf').textContent = data.performance.issues.length;
+  qs('#tbadge-error').textContent = data.error.issues.length;
+  qs('#tbadge-orch').textContent = data.orchestrator.fix_plan.length;
+  qs('#tbadge-rewrite').textContent = data.rewriter.fixes_applied + ' fixes';
+}
+
+/* ─── Intake ─── */
+function populateIntake(d) {
+  qs('#m-language').textContent = d.language;
+  qs('#m-framework').textContent = d.framework;
+  qs('#m-files').textContent = d.file_count;
+  qs('#m-complexity').innerHTML = `${d.complexity_score}<small style="font-size:12px;color:var(--text-3)">/10</small>`;
+  qs('#m-complexity-bar').style.width = (d.complexity_score * 10) + '%';
+  qs('#m-summary').textContent = d.summary;
+
+  const flags = qs('#m-risk-flags');
+  flags.innerHTML = '';
+  const items = [
+    { key: 'has_database', label: 'Database Usage', yes: true },
+    { key: 'has_auth', label: 'Auth Logic', yes: true },
+    { key: 'has_env_vars', label: 'Env Vars', yes: false },
+  ];
+  items.forEach(item => {
+    const val = d[item.key];
+    const isDanger = val && item.yes;
+    const chip = document.createElement('div');
+    chip.className = `flag-chip ${isDanger ? 'danger' : (val ? 'safe' : 'safe')}`;
+    chip.innerHTML = `<span>${isDanger ? '⚠️' : '✅'}</span> ${item.label}: ${val ? 'Detected' : 'None'}`;
+    flags.appendChild(chip);
+  });
+}
+
+/* ─── Issue renderer ─── */
+function renderIssues(issues, fieldMap) {
+  if (!issues || issues.length === 0) {
+    return `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No issues found</div><div class="empty-sub">This section looks clean!</div></div>`;
+  }
+
+  const severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+  let html = '';
+
+  severities.forEach(sev => {
+    const group = issues.filter(i => i.severity === sev);
+    if (!group.length) return;
+
+    const sevLower = sev.toLowerCase();
+    html += `<div class="severity-section">
+      <div class="severity-header">
+        <div class="severity-dot ${sevLower}"></div>
+        <div class="severity-label ${sevLower}">${sev}</div>
+        <div class="severity-count">${group.length} issue${group.length > 1 ? 's' : ''}</div>
+      </div>
+      <div class="issue-list">`;
+
+    group.forEach(issue => {
+      const cat = issue[fieldMap.category] || '';
+      const desc = issue[fieldMap.description] || '';
+      const hint = issue[fieldMap.hint] || '';
+      const fix = issue.fix || '';
+      const extra = fieldMap.extra ? issue[fieldMap.extra] : null;
+
+      html += `<div class="issue-card ${sevLower}">
+        <div class="issue-header">
+          <div class="issue-category">${cat}</div>
+        </div>
+        <div class="issue-body">
+          <div class="issue-desc">${desc}</div>
+          <div class="issue-meta">
+            <div class="issue-meta-item">
+              <div class="issue-meta-label">Location</div>
+              <div class="issue-meta-val">${hint || 'unknown'}</div>
+            </div>
+            ${extra ? `<div class="issue-meta-item">
+              <div class="issue-meta-label">${fieldMap.extraLabel || 'Info'}</div>
+              <div class="issue-meta-val">${extra}</div>
+            </div>` : ''}
+          </div>
+          <div class="issue-fix">${fix}</div>
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  return html;
+}
+
+/* ─── Security ─── */
+function populateSecurity(d) {
+  const wrap = qs('#security-content');
+  const verdictColor = d.verdict.includes('UNSAFE') ? 'var(--red-l)' : d.verdict === 'RISKY' ? 'var(--amber)' : 'var(--green)';
+  let html = `<div class="info-row" style="margin-bottom:20px">
+    <div class="info-chip" style="color:${verdictColor};border-color:${verdictColor}">🔐 Verdict: ${d.verdict}</div>
+  </div>`;
+  html += renderIssues(d.issues, { category: 'category', description: 'description', hint: 'line_hint' });
+  wrap.innerHTML = html;
+}
+
+/* ─── Performance ─── */
+function populatePerformance(d) {
+  const wrap = qs('#perf-content');
+  const verdictColor = d.verdict === 'WILL NOT SCALE' ? 'var(--red-l)' : d.verdict === 'NEEDS OPTIMIZATION' ? 'var(--amber)' : 'var(--green)';
+  let html = `<div class="info-row" style="margin-bottom:20px">
+    <div class="info-chip" style="color:${verdictColor};border-color:${verdictColor}">⚡ ${d.verdict}</div>
+    <div class="info-chip">🎯 Bottleneck: ${d.estimated_bottleneck}</div>
+  </div>`;
+  html += renderIssues(d.issues, { category: 'pattern', description: 'description', hint: 'line_hint', extra: 'impact', extraLabel: 'Impact' });
+  wrap.innerHTML = html;
+}
+
+/* ─── Error Handling ─── */
+function populateErrors(d) {
+  const wrap = qs('#error-content');
+  const verdictColor = d.verdict === 'NO ERROR HANDLING' ? 'var(--red-l)' : d.verdict === 'FRAGILE' ? 'var(--amber)' : d.verdict === 'PARTIAL' ? 'var(--cyan)' : 'var(--green)';
+  const handlingBadge = d.has_any_error_handling
+    ? `<div class="info-chip" style="color:var(--green)">✅ Has Some Error Handling</div>`
+    : `<div class="info-chip" style="color:var(--red-l);border-color:var(--red)">❌ No Error Handling Detected</div>`;
+  let html = `<div class="info-row" style="margin-bottom:20px">
+    <div class="info-chip" style="color:${verdictColor};border-color:${verdictColor}">🛡️ ${d.verdict}</div>
+    ${handlingBadge}
+  </div>`;
+  html += renderIssues(d.issues, { category: 'issue_type', description: 'description', hint: 'line_hint', extra: 'consequence', extraLabel: 'Consequence' });
+  wrap.innerHTML = html;
+}
+
+/* ─── Orchestrator ─── */
+function populateOrchestrator(d) {
+  const wrap = qs('#orch-content');
+  const shipColor = d.ship_ready ? 'var(--green)' : 'var(--red-l)';
+  const shipEmoji = d.ship_ready ? '✅' : '🚫';
+
+  let html = `<div class="info-row" style="margin-bottom:20px">
+    <div class="info-chip" style="color:${shipColor};border-color:${shipColor}">${shipEmoji} ${d.overall_verdict}</div>
+    <div class="info-chip">📋 ${d.total_issues} prioritized fixes</div>
+  </div>
+  <div class="m-card" style="margin-bottom:20px">
+    <div class="m-card-label">Engineering Lead Summary</div>
+    <div style="font-size:14px;color:var(--text-2);line-height:1.7;margin-top:6px;font-style:italic">"${d.one_liner}"</div>
+  </div>
+  <div class="fix-plan-list">`;
+
+  d.fix_plan.forEach(item => {
+    const sevColor = item.severity === 'CRITICAL' ? 'var(--red-l)' : item.severity === 'HIGH' ? 'var(--amber)' : item.severity === 'MEDIUM' ? 'var(--cyan)' : 'var(--green)';
+    const sevEmoji = item.severity === 'CRITICAL' ? '🔴' : item.severity === 'HIGH' ? '🟡' : item.severity === 'MEDIUM' ? '🔵' : '🟢';
+    html += `<div class="fix-item">
+      <div class="fix-priority" style="color:${sevColor};border-color:${sevColor}">#${item.priority}</div>
+      <div class="fix-content">
+        <div class="fix-title">${sevEmoji} ${item.title}</div>
+        <div class="fix-action">→ ${item.action}</div>
+      </div>
+      <div class="fix-agent-badge">${item.source_agent}</div>
+    </div>`;
+  });
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+/* ─── Rewriter ─── */
+function populateRewriter(d) {
+  const wrap = qs('#rewrite-content');
+  const verdictColor = d.final_verdict === 'PRODUCTION READY' ? 'var(--green)' : d.final_verdict === 'SIGNIFICANTLY IMPROVED' ? 'var(--cyan)' : 'var(--amber)';
+
+  let html = `<div class="rewriter-stats">
+    <div class="r-stat-card">
+      <div class="r-stat-num green">${d.fixes_applied}</div>
+      <div class="r-stat-label">Fixes Applied</div>
+    </div>
+    <div class="r-stat-card">
+      <div class="r-stat-num amber">${d.fixes_skipped}</div>
+      <div class="r-stat-label">Fixes Skipped</div>
+    </div>
+    <div class="r-stat-card">
+      <div class="r-stat-num green">${d.changes_count}</div>
+      <div class="r-stat-label">Code Changes</div>
+    </div>
+    <div class="r-stat-card">
+      <div class="r-stat-num" style="font-size:14px;color:${verdictColor}">${d.final_verdict}</div>
+      <div class="r-stat-label">Final Verdict</div>
+    </div>
+  </div>
+  <div class="m-card" style="margin-bottom:20px">
+    <div class="m-card-label">Changes Applied</div>
+    <div class="changes-list">`;
+
+  d.changes_made.forEach(c => {
+    html += `<div class="change-item">${c}</div>`;
+  });
+
+  html += `</div></div>
+  <div class="code-output-header">
+    <div class="code-output-title">✨ Fixed Code <span style="color:var(--text-3);font-size:11px;margin-left:8px">— VIBEFIX: comments mark each change</span></div>
+    <button class="btn-copy" id="copy-btn" onclick="copyCode()">Copy Code</button>
+  </div>
+  <pre class="code-output" id="fixed-code-output"></pre>`;
+
+  wrap.innerHTML = html;
+  qs('#fixed-code-output').textContent = d.fixed_code;
+}
+
+function copyCode() {
+  const code = qs('#fixed-code-output')?.textContent || '';
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = qs('#copy-btn');
+    if (!btn) return;
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Code'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+/* ─── Tabs ─── */
+function switchTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  qs(`#tab-${name}-btn`).classList.add('active');
+  qs(`#tab-${name}`).classList.add('active');
+}
+
+/* ─── Tab keyboard shortcut ─── */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') runPipeline();
+});
+
+/* ─── Init ─── */
+loadSample();
+</script>
+</body>
+</html>
