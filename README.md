@@ -111,6 +111,7 @@ The project expects one secret in `.env`:
 
 ```env
 GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
 Do not commit real API keys.

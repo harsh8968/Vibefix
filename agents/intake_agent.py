@@ -1,10 +1,11 @@
 import json
 import google.generativeai as genai
+from agents.gemini_utils import clean_json_response, get_gemini_model_name
 from models.manifest import CodeManifest
 
 def run_intake(raw_code: str) -> CodeManifest:
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name=get_gemini_model_name(),
         system_instruction="You are a code analysis agent. Analyze the provided code and return ONLY valid JSON. No markdown, no backticks, no explanation. Just raw JSON."
     )
     
@@ -17,7 +18,7 @@ Code:
 
     try:
         response = model.generate_content(prompt)
-        text = response.text.strip()
+        text = clean_json_response(response.text)
         data = json.loads(text)
         
         return CodeManifest(

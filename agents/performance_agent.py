@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 import google.generativeai as genai
+from agents.gemini_utils import clean_json_response, get_gemini_model_name
 from models.manifest import CodeManifest
 
 @dataclass
@@ -23,7 +24,7 @@ class PerformanceReport:
 
 def run_performance_audit(manifest: CodeManifest) -> PerformanceReport:
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name=get_gemini_model_name(),
         system_instruction="You are a performance audit agent for source code.\nIdentify performance bottlenecks and anti-patterns.\nReturn ONLY valid JSON. No markdown. No explanation."
     )
     
@@ -64,15 +65,7 @@ Code:
 
     try:
         response = model.generate_content(prompt)
-        text = response.text.strip()
-        
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
+        text = clean_json_response(response.text)
             
         data = json.loads(text)
         
