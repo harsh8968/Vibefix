@@ -1,0 +1,53 @@
+<svg width="1280" height="420" viewBox="0 0 1280 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">VibeFix project banner</title>
+  <desc id="desc">A dark, polished banner showing the VibeFix AI code repair pipeline from scan to prioritized fix to rewrite.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071013"/>
+      <stop offset="0.48" stop-color="#101827"/>
+      <stop offset="1" stop-color="#17120D"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="120" y1="70" x2="1180" y2="350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#21C7A8"/>
+      <stop offset="0.52" stop-color="#5DADEC"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <path d="M0 330 C180 250 305 394 484 304 C685 204 762 84 1000 160 C1134 203 1204 176 1280 130 L1280 420 L0 420 Z" fill="url(#accent)" opacity="0.18"/>
+  <path d="M84 92 H1196" stroke="url(#accent)" stroke-width="2" opacity="0.55"/>
+  <path d="M84 334 H1196" stroke="url(#accent)" stroke-width="2" opacity="0.28"/>
+
+  <g filter="url(#shadow)">
+    <rect x="84" y="116" width="344" height="188" rx="18" fill="#0C161D" stroke="#243745"/>
+    <rect x="468" y="116" width="344" height="188" rx="18" fill="#0E1726" stroke="#294157"/>
+    <rect x="852" y="116" width="344" height="188" rx="18" fill="#161411" stroke="#4A3920"/>
+  </g>
+
+  <text x="84" y="72" fill="#EAF6F3" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="4">VIBEFIX</text>
+  <text x="84" y="380" fill="#A7B5BD" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="21">AI code triage for builders who need to ship safer demos faster.</text>
+
+  <text x="120" y="166" fill="#21C7A8" font-family="JetBrains Mono, Consolas, monospace" font-size="18" font-weight="700">01 / SCAN</text>
+  <text x="120" y="206" fill="#F2FBF8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="31" font-weight="800">Find hidden risk</text>
+  <text x="120" y="244" fill="#AFC2C8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">Security, performance, and error</text>
+  <text x="120" y="270" fill="#AFC2C8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">handling agents inspect the code.</text>
+
+  <text x="504" y="166" fill="#5DADEC" font-family="JetBrains Mono, Consolas, monospace" font-size="18" font-weight="700">02 / PRIORITIZE</text>
+  <text x="504" y="206" fill="#F4F8FF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="31" font-weight="800">Build the fix plan</text>
+  <text x="504" y="244" fill="#B5C4D5" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">The orchestrator ranks what must</text>
+  <text x="504" y="270" fill="#B5C4D5" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">be fixed before a project can ship.</text>
+
+  <text x="888" y="166" fill="#F59E0B" font-family="JetBrains Mono, Consolas, monospace" font-size="18" font-weight="700">03 / REWRITE</text>
+  <text x="888" y="206" fill="#FFF8EB" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="31" font-weight="800">Return safer code</text>
+  <text x="888" y="244" fill="#D8C9AF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">The rewriter applies fixes while</text>
+  <text x="888" y="270" fill="#D8C9AF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">preserving the original intent.</text>
+
+  <path d="M428 210 H468" stroke="#AFC2C8" stroke-width="3" opacity="0.7"/>
+  <path d="M812 210 H852" stroke="#AFC2C8" stroke-width="3" opacity="0.7"/>
+  <path d="M456 199 L468 210 L456 221" stroke="#AFC2C8" stroke-width="3" opacity="0.7"/>
+  <path d="M840 199 L852 210 L840 221" stroke="#AFC2C8" stroke-width="3" opacity="0.7"/>
+</svg>
