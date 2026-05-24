@@ -1,3 +1,4 @@
+import argparse
 import os
 import textwrap
 from dotenv import load_dotenv
@@ -8,6 +9,12 @@ from agents.performance_agent import run_performance_audit
 from agents.error_agent import run_error_audit
 from agents.orchestrator_agent import run_orchestrator
 from agents.rewriter_agent import run_rewriter
+from agents.project_rewriter_agent import run_project_rewriter
+from agents.project_scanner import (
+    build_project_snapshot,
+    copy_project_without_junk,
+    write_changed_files,
+)
 
 # Load environment variables
 load_dotenv()
@@ -303,27 +310,97 @@ def print_rewriter_report(report):
     print("  → Orchestrator → Rewriter ✅")
     print("─────────────────────────────────────────")
 
-if __name__ == "__main__":
+def run_audit_pipeline(raw_code: str):
     print("Running intake agent analysis...")
-    manifest = run_intake(SAMPLE_CODE)
+    manifest = run_intake(raw_code)
     print_report(manifest)
-    
+
     print("Running security audit analysis...")
     security_report = run_security_audit(manifest)
     print_security_report(security_report)
-    
+
     print("Running performance audit analysis...")
     performance_report = run_performance_audit(manifest)
     print_performance_report(performance_report)
-    
+
     print("Running error handling audit analysis...")
     error_report = run_error_audit(manifest)
     print_error_report(error_report)
-    
+
     print("Running orchestrator analysis...")
     orchestrator_report = run_orchestrator(manifest, security_report, performance_report, error_report)
     print_orchestrator_report(orchestrator_report)
-    
+
+    return manifest, orchestrator_report
+
+
+def run_sample_mode():
+    manifest, orchestrator_report = run_audit_pipeline(SAMPLE_CODE)
+
     print("Running code rewriter...")
     rewriter_report = run_rewriter(manifest, orchestrator_report)
     print_rewriter_report(rewriter_report)
+
+
+def run_project_mode(project_path: str, output_dir: str):
+    print(f"Scanning project folder: {project_path}")
+    snapshot = build_project_snapshot(project_path)
+    print(f"Found {len(snapshot.files)} source files for analysis")
+    if snapshot.skipped:
+        print(f"Skipped {len(snapshot.skipped)} files or entries")
+
+    _, orchestrator_report = run_audit_pipeline(snapshot.raw_code)
+
+    print("Running project rewriter...")
+    project_report = run_project_rewriter(snapshot, orchestrator_report)
+
+    output_root = copy_project_without_junk(snapshot, output_dir)
+    written = write_changed_files(output_root, project_report.files)
+
+    print("─────────────────────────────────────────")
+    print("  VIBEFIX — PROJECT REWRITE")
+    print("─────────────────────────────────────────")
+    print(f"  Output Folder   : {output_root}")
+    print(f"  Final Verdict   : {project_report.final_verdict}")
+    total_fixes = project_report.fixes_applied + project_report.fixes_skipped
+    print(f"  Fixes Applied   : {project_report.fixes_applied}/{total_fixes}")
+    print(f"  Files Rewritten : {len(written)}")
+    print("─────────────────────────────────────────")
+    print("  CHANGES APPLIED:")
+    for change in project_report.changes_made:
+        print(f"  ✅ {change}")
+    if not project_report.changes_made:
+        print("  None")
+    print("─────────────────────────────────────────")
+    print("  FILES WRITTEN:")
+    for path in written:
+        print(f"  - {path}")
+    if not written:
+        print("  None")
+    print("─────────────────────────────────────────")
+    print("  Original project was not overwritten.")
+    print("─────────────────────────────────────────")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="VibeFix scans pasted code or an entire project folder and generates safer fixes."
+    )
+    parser.add_argument(
+        "--project",
+        help="Path to a project folder to scan and fix into a separate output folder."
+    )
+    parser.add_argument(
+        "--output",
+        default="vibefix-output",
+        help="Output folder for fixed project mode. Default: vibefix-output"
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    if args.project:
+        run_project_mode(args.project, args.output)
+    else:
+        run_sample_mode()

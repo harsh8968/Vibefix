@@ -70,6 +70,14 @@ Then run:
 python main.py
 ```
 
+Scan and fix an entire project folder:
+
+```bash
+python main.py --project "C:\path\to\your-project" --output vibefix-output
+```
+
+Project mode scans supported source files, skips secrets and build folders, runs the same agent pipeline across the whole folder, and writes a fixed copy to `vibefix-output` without overwriting the original project.
+
 ## Repository Structure
 
 ```text
